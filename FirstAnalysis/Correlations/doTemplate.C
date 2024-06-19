@@ -1,14 +1,3 @@
-// Copyright 2019-2020 CERN and copyright holders of ALICE O2.
-// See https://alice-o2.web.cern.ch/copyright for details of the copyright holders.
-// All rights not expressly granted are reserved.
-//
-// This software is distributed under the terms of the GNU General Public
-// License v3 (GPL Version 3), copied verbatim in the file "COPYING".
-//
-// In applying this license CERN does not waive the privileges and immunities
-// granted to it by virtue of its status as an Intergovernmental Organization
-// or submit itself to any jurisdiction.
-
 ///////////////////////////////////////////////////////////////////////////
 //  Macro to perform a template fit on 1D histograms of projected correlations on delta phi
 //
@@ -39,7 +28,7 @@ double binspTtrig[] = {0.2, 0.5, 1.0, 1.5, 2.0, 2.5, 3.0};
 int nBinspTref = 1;
 double binspTref[] = {0.2, 3.0};
 
-const int nBinsMult = 7;
+const int nBinsMult = 4;
 double binsMult[] = {0, 10, 20, 30, 40, 50, 60, 80, 100, 200};
 
 TFile* outputFile;
@@ -76,8 +65,8 @@ void doTemplate(
     //  get the histograms projected to delta phi,
     //  we need to distinguish histogram with desired (high) multiplicity
     //  from a histogram with low multiplicity used as the peripheral baseline
-    hminuit = reinterpret_cast<TH1D*>(inFile->Get(Form("proj_dphi_ref_%d", iMult))->Clone("hminuit"));
-    hminuit_periph = reinterpret_cast<TH1D*>(inFile->Get("proj_dphi_ref_0")->Clone("hminuit_periph"));
+    hminuit = (TH1D*)inFile->Get(Form("proj_dphi_ref_%d", iMult))->Clone("hminuit");
+    hminuit_periph = (TH1D*)inFile->Get("proj_dphi_ref_0")->Clone("hminuit_periph");
 
     //  do the template fit
     double par[4], parerr[4];
@@ -93,10 +82,10 @@ void doTemplate(
       //  F*Y_peripheral(deltaphi) + Y_ridge = template fit
       TF1* fTemplate = new TF1("fTemplate", templateFitFunction, -0.5 * TMath::Pi() + 1e-6, 1.5 * TMath::Pi() - 1e-6, 4);
       fTemplate->SetParameters(par); //  set the parameters obtained from template fit above using tempMinuit()
-      // fTemplate->SetLineStyle(kSolid);
-      // fTemplate->SetLineColor(kBlue+1);
+      //fTemplate->SetLineStyle(kSolid);
+      //fTemplate->SetLineColor(kBlue+1);
 
-      TH1F* hTemplate = reinterpret_cast<TH1F*>(hminuit->Clone());
+      TH1F* hTemplate = (TH1F*)hminuit->Clone();
       hTemplate->Reset();
       for (int iBin = 1; iBin < hTemplate->GetNbinsX() + 1; iBin++) {
         hTemplate->SetBinContent(iBin, fTemplate->Eval(hTemplate->GetBinCenter(iBin)));
@@ -120,7 +109,8 @@ void doTemplate(
       fRidge->SetLineStyle(kSolid);
       fRidge->SetLineWidth(3);
       fRidge->SetLineColor(kRed + 1);
-
+		
+	  /*
       if (drawSeparatevn) {
         // F*Y_peripheral(0) + Y_ridge  v3
         TF1* fRidgev3 = new TF1("fRidgev3", "[0]*[3] + [1]*(1 + 2*[2]*cos(3*x))", -5, 5);
@@ -132,6 +122,7 @@ void doTemplate(
         fRidgev3->SetLineWidth(3);
         fRidgev3->SetLineColor(kRed + 1);
       }
+      */
 
       //  F*Y_peripheral(deltaphi) + G
       TF1* fPeripheral = new TF1("fPeripheral", templateFitFunction, -0.5 * TMath::Pi() + 1e-6, 1.5 * TMath::Pi() - 1e-6, 5);
@@ -142,7 +133,7 @@ void doTemplate(
       fPeripheral->SetLineWidth(3);
       fPeripheral->SetLineColor(kGreen + 2);
 
-      TH1F* hPeripheral = reinterpret_cast<TH1F*>(hminuit->Clone());
+      TH1F* hPeripheral = (TH1F*)hminuit->Clone();
       hPeripheral->Reset();
       for (int iBin = 1; iBin < hPeripheral->GetNbinsX() + 1; iBin++) {
         hPeripheral->SetBinContent(iBin, fPeripheral->Eval(hPeripheral->GetBinCenter(iBin)));
@@ -171,9 +162,11 @@ void doTemplate(
       hTemplate->Draw("hist same");
       hPeripheral->Draw("hist same");
       fRidge->Draw("same");
+      /*
       if (drawSeparatevn) {
         fRidgev3->Draw("same");
       }
+      */
 
       TLegend* legend = new TLegend(0.15, 0.55, 0.5, 0.75);
       legend->SetFillColor(0);
@@ -195,7 +188,7 @@ void doTemplate(
       latex->DrawLatex(0.3, 0.93, "pp #sqrt{s} = 13 TeV");
       latex->DrawLatex(0.3, 0.86, Form("%.1f < p_{T, trig, assoc} < %.1f", binspTref[0], binspTref[1]));
       latex->DrawLatex(0.3, 0.79, Form("%.1f < N_{ch} < %.1f", binsMult[iMult], binsMult[iMult + 1]));
-      // latex->DrawLatex(0.3,0.72,Form("%.1f < #Delta#eta < %.1f",etaMin,etaMax));
+      //latex->DrawLatex(0.3,0.72,Form("%.1f < #Delta#eta < %.1f",etaMin,etaMax));
 
       if (savePlots)
         cTemplate->SaveAs(Form("%s/template_ref_%d.png", outputPlotsName, iMult));
@@ -210,8 +203,8 @@ void doTemplate(
       //  get the histograms projected to delta phi,
       //  we need to distinguish histogram with desired (high) multiplicity
       //  from a histogram with low multiplicity used as the peripheral baseline
-      hminuit = reinterpret_cast<TH1D*>(inFile->Get(Form("proj_dphi_%d_0_%d", ipTtrig, iMult))->Clone("hminuit"));
-      hminuit_periph = reinterpret_cast<TH1D*>(inFile->Get(Form("proj_dphi_%d_0_0", ipTtrig))->Clone("hminuit_periph"));
+      hminuit = (TH1D*)inFile->Get(Form("proj_dphi_%d_0_%d", ipTtrig, iMult))->Clone("hminuit");
+      hminuit_periph = (TH1D*)inFile->Get(Form("proj_dphi_%d_0_0", ipTtrig))->Clone("hminuit_periph");
 
       //  do the template fit
       double par[4], parerr[4];
@@ -230,7 +223,7 @@ void doTemplate(
         fTemplate->SetLineStyle(kSolid);
         fTemplate->SetLineColor(kRed);
 
-        TH1F* hTemplate = reinterpret_cast<TH1F*>(hminuit->Clone());
+        TH1F* hTemplate = (TH1F*)hminuit->Clone();
         hTemplate->Reset();
         for (int iBin = 1; iBin < hTemplate->GetNbinsX() + 1; iBin++) {
           hTemplate->SetBinContent(iBin, fTemplate->Eval(hTemplate->GetBinCenter(iBin)));
@@ -258,7 +251,7 @@ void doTemplate(
         fPeripheral->SetLineStyle(kSolid);
         fPeripheral->SetLineColor(kMagenta);
 
-        TH1F* hPeripheral = reinterpret_cast<TH1F*>(hminuit->Clone());
+        TH1F* hPeripheral = (TH1F*)hminuit->Clone();
         hPeripheral->Reset();
         for (int iBin = 1; iBin < hPeripheral->GetNbinsX() + 1; iBin++) {
           hPeripheral->SetBinContent(iBin, fPeripheral->Eval(hPeripheral->GetBinCenter(iBin)));
@@ -308,7 +301,7 @@ void doTemplate(
         latex->DrawLatex(0.3, 0.93, "pp #sqrt{s} = 13 TeV");
         latex->DrawLatex(0.3, 0.86, Form("%.1f < p_{T, trig} < %.1f", binspTtrig[ipTtrig], binspTtrig[ipTtrig + 1]));
         latex->DrawLatex(0.3, 0.79, Form("%.1f < N_{ch} < %.1f", binsMult[iMult], binsMult[iMult + 1]));
-        // latex->DrawLatex(0.3,0.72,Form("%.1f < #Delta#eta < %.1f",etaMin,etaMax));
+        //latex->DrawLatex(0.3,0.72,Form("%.1f < #Delta#eta < %.1f",etaMin,etaMax));
 
         if (savePlots)
           cTemplate->SaveAs(Form("%s/template_%d_%d.png", outputPlotsName, ipTtrig, iMult));
@@ -351,8 +344,8 @@ double templateFitFunction(double* x, double* par)
 ///////////////////////////////////////////////////////////////////////////
 void minuitFunction(int& npar, double* gin, double& ff, double* par, int iflag)
 {
-  TH1D* h = reinterpret_cast<TH1D*>(hminuit->Clone("h"));
-  TH1D* hperi = reinterpret_cast<TH1D*>(hminuit_periph->Clone("hperi"));
+  TH1D* h = (TH1D*)hminuit->Clone("h");
+  TH1D* hperi = (TH1D*)hminuit_periph->Clone("hperi");
 
   double f = par[0];
   double gv = par[1];

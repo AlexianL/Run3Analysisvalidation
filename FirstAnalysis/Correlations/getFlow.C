@@ -1,14 +1,3 @@
-// Copyright 2019-2020 CERN and copyright holders of ALICE O2.
-// See https://alice-o2.web.cern.ch/copyright for details of the copyright holders.
-// All rights not expressly granted are reserved.
-//
-// This software is distributed under the terms of the GNU General Public
-// License v3 (GPL Version 3), copied verbatim in the file "COPYING".
-//
-// In applying this license CERN does not waive the privileges and immunities
-// granted to it by virtue of its status as an Intergovernmental Organization
-// or submit itself to any jurisdiction.
-
 ///////////////////////////////////////////////////////////////////////////
 //  Macro to calculate final flow coefficients based on v_nDelta results
 //  obtained from template fits in doTemplate.C macro
@@ -36,7 +25,7 @@ double binspTtrig[] = {0.2, 0.5, 1.0, 1.5, 2.0, 2.5, 3.0};
 int nBinspTref = 1;
 double binspTref[] = {0.2, 3.0};
 
-const int nBinsMult = 7;
+const int nBinsMult = 4;
 double binsMult[] = {0, 10, 20, 30, 40, 50, 60, 80, 100, 200};
 
 TH1D* hDifferentialV2[nBinsMult];
@@ -57,7 +46,7 @@ void getFlow(
   TFile* inFile = TFile::Open(Form("%s", inputFileName), "read");
 
   //  DO REFERENCE FLOW
-  TH1D* hReferenceV2 = reinterpret_cast<TH1D*>(inFile->Get("hReferenceV2"));
+  TH1D* hReferenceV2 = (TH1D*)inFile->Get("hReferenceV2");
 
   TH1D* hRefFlow_v2 = new TH1D("hRefFlow_v2", "reference flow; multiplicity; v_{2}", nBinsMult, binsMult);
 
@@ -82,7 +71,7 @@ void getFlow(
     hRefFlow_v2->SetBinError(iMult + 1, v2err);
 
     //  DO DIFFERENTIAL FLOW
-    hDifferentialV2[iMult] = reinterpret_cast<TH1D*>(inFile->Get(Form("hDifferentialV2_%d", iMult)));
+    hDifferentialV2[iMult] = (TH1D*)inFile->Get(Form("hDifferentialV2_%d", iMult));
 
     hDiffFlow_v2[iMult] = new TH1D(Form("hDiffFlow_v2_%d", iMult), Form("differential flow, %.0f < N_{ch} < %.0f; p_{T}; v_{2}", binsMult[iMult], binsMult[iMult + 1]), nBinspTtrig, binspTtrig);
 

@@ -1,14 +1,3 @@
-// Copyright 2019-2020 CERN and copyright holders of ALICE O2.
-// See https://alice-o2.web.cern.ch/copyright for details of the copyright holders.
-// All rights not expressly granted are reserved.
-//
-// This software is distributed under the terms of the GNU General Public
-// License v3 (GPL Version 3), copied verbatim in the file "COPYING".
-//
-// In applying this license CERN does not waive the privileges and immunities
-// granted to it by virtue of its status as an Intergovernmental Organization
-// or submit itself to any jurisdiction.
-
 ///////////////////////////////////////////////////////////////////////////
 //  Macro to produce 2D histograms of correlations vs. delta phi and delta eta
 //
@@ -37,17 +26,21 @@
 //    Jan Fiete Grosse-Oetringhaus <Jan.Fiete.Grosse-Oetringhaus@cern.ch>
 ///////////////////////////////////////////////////////////////////////////
 
+#include <stdio.h>
+
 Float_t gpTMin = 0.21;
 Float_t gpTMax = 2.99;
-Float_t gEtaMin = -0.8;
-Float_t gEtaMax = 0.8;
+//Float_t gEtaMin = -0.8;
+//Float_t gEtaMax = 0.8;
+Float_t gEtaMin = -4;
+Float_t gEtaMax = 4;
 Float_t gZVtxMin = -10;
 Float_t gZVtxMax = 10;
 
 void setupRanges(CorrelationContainer* obj)
 {
   obj->setEtaRange(0, 0);
-  // obj->setEtaRange(gEtaMin, gEtaMax);
+  //obj->setEtaRange(gEtaMin, gEtaMax);
   obj->setPtRange(gpTMin, gpTMax);
   obj->setZVtxRange(gZVtxMin + 0.01, gZVtxMax - 0.01);
 }
@@ -61,11 +54,15 @@ void setupRanges(CorrelationContainer* obj)
 ///////////////////////////////////////////////////////////////////////////
 void getSumOfRatios(CorrelationContainer* h, CorrelationContainer* hMixed, TH1** hist, CorrelationContainer::CFStep step, Float_t centralityBegin, Float_t centralityEnd, Float_t ptBegin, Float_t ptEnd, Bool_t normalizePerTrigger = kTRUE)
 {
+  std::cout << "Do we get in ?" << std::endl;
+
   Printf("getSumOfRatios | step %d | %.1f-%.1f%% | %.1f - %.1f GeV/c | %.1f - %.1f GeV/c", step, centralityBegin, centralityEnd, gpTMin, gpTMax, ptBegin, ptEnd);
 
   h->setCentralityRange(0.01 + centralityBegin, -0.01 + centralityEnd);
   hMixed->setCentralityRange(0.01 + centralityBegin, -0.01 + centralityEnd);
   *hist = h->getSumOfRatios(hMixed, step, ptBegin, ptEnd, normalizePerTrigger);
+
+  
 
   TString str;
   str.Form("%.1f < p_{T,trig} < %.1f", ptBegin - 0.01, ptEnd + 0.01);
@@ -75,8 +72,9 @@ void getSumOfRatios(CorrelationContainer* h, CorrelationContainer* hMixed, TH1**
 
   TString newTitle;
   newTitle.Form("%s - %s - %.0f-%.0f", str.Data(), str2.Data(), centralityBegin, centralityEnd);
-  if ((*hist))
+  if ((*hist)) {
     (*hist)->SetTitle(newTitle);
+  }
 }
 
 ///////////////////////////////////////////////////////////////////////////
@@ -115,7 +113,7 @@ TH1* getProjectionOfAxis(CorrelationContainer* h, CorrelationContainer::CFStep s
   else
     sparse = h->getTriggerHist()->getTHn(step);
 
-  TH1* hprojection = reinterpret_cast<TH1*>(sparse->Projection(naxis));
+  TH1* hprojection = (TH1*)sparse->Projection(naxis);
   return hprojection;
 }
 
@@ -129,7 +127,8 @@ void extract2D(
   const char* outputPlots = "./plots",
   bool plotExamplePlots = false,
   bool saveSameEventDis = false,
-  bool hfcase = false)
+  bool hfcase = false,
+  bool mftcase = false)
 {
   gStyle->SetOptStat(1111111);
 
@@ -154,7 +153,7 @@ void extract2D(
   Int_t maxAssocPt = 1;
   Float_t assocPtArr[] = {0.2, 3.0};
 
-  Int_t maxCentrality = 9;
+  Int_t maxCentrality = 3;
   Float_t centralityArr[] = {0, 10, 20, 30, 40, 50, 60, 80, 100, 200};
 
   // h is the container of the same event
@@ -165,22 +164,35 @@ void extract2D(
   if (hfcase) {
     directoryh = Form("%s/sameEventHFHadrons", folder);
     directoryhMixed = Form("%s/mixedEventHFHadrons", folder);
+  } else if (mftcase) {
+    directoryh = Form("%s/sameEventTPCMFTChHadrons", folder);
+    directoryhMixed = Form("%s/mixedEventTPCMFTChHadrons", folder);
   } else {
     directoryh = Form("%s/sameEventTPCTPCChHadrons", folder);
     directoryhMixed = Form("%s/mixedEventTPCTPCChHadrons", folder);
   }
-  auto h = reinterpret_cast<CorrelationContainer*>(inputFile->Get(Form("%s", directoryh)));
-  auto hMixed = reinterpret_cast<CorrelationContainer*>(inputFile->Get(Form("%s", directoryhMixed)));
 
-  //  auto proj = getProjectionOfAxis(h, step, false, 0);
-  //  proj->Draw();
-  //  printf("entires proj: %g \n", proj->GetEntries());
-  //  return;
+  auto h = (CorrelationContainer*)inputFile->Get(Form("%s", directoryh));
+  auto hMixed = (CorrelationContainer*)inputFile->Get(Form("%s", directoryhMixed));
+
+  auto proj = getProjectionOfAxis(h, step, true, 3);
+  auto c_proj = new TCanvas;
+  proj->Draw("proj");
+  printf("entries proj: %g \n", proj->GetEntries());
+  c_proj->SaveAs(Form("%s/general/Mult_proj_pair.png", outputPlots));
+
+  // For trigger hist
+  auto proj1 = getProjectionOfAxis(h, step, false, 1);
+  auto c_proj1 = new TCanvas;
+  proj1->Draw("proj1");
+  printf("entries proj: %g \n", proj1->GetEntries());
+  c_proj1->SaveAs(Form("%s/general/Mult_proj_trigger.png", outputPlots));
+  //return;
 
   // the number of events for each multiplicity/centrality class is calculated and printed.
   auto eventHist = h->getEventCount();
-  Printf("Events with centrality: %d", static_cast<int>(eventHist->Integral(eventHist->GetXaxis()->FindBin(6.)), eventHist->GetXaxis()->FindBin(6.), eventHist->GetYaxis()->FindBin(0.), eventHist->GetYaxis()->FindBin(99.9)));
-  Printf("Events: %d", static_cast<int>(eventHist->ProjectionX()->Integral(eventHist->GetXaxis()->FindBin(6.)), eventHist->GetXaxis()->FindBin(6.)));
+  printf("Events with centrality: %d", (int)eventHist->Integral(eventHist->GetXaxis()->FindBin(6.), eventHist->GetXaxis()->FindBin(6.), eventHist->GetYaxis()->FindBin(0.), eventHist->GetYaxis()->FindBin(99.9)));
+  printf("Events: %d", (int)eventHist->ProjectionX()->Integral(eventHist->GetXaxis()->FindBin(6.), eventHist->GetXaxis()->FindBin(6.)));
   //   eventHist->ProjectionX()->Draw();
   //   return;
 
@@ -193,7 +205,8 @@ void extract2D(
     hMixed->setCentralityRange(10, 20);
     hMixed->setZVtxRange(-10, 10);
 
-    TH2* sameTwoD = reinterpret_cast<TH2*>(h->getPerTriggerYield(step, 0.2, 2.99, true));
+    //TH2* CorrelationContainer::getPerTriggerYield(CorrelationContainer::CFStep step, Float_t ptTriggerMin, Float_t ptTriggerMax, Bool_t normalizePerTrigger)
+    TH2* sameTwoD = (TH2*)h->getPerTriggerYield(step, 0.2, 2.99, true);
     auto c1 = new TCanvas;
     sameTwoD->Draw("SURF1");
     sameTwoD->SetStats(0);
@@ -202,7 +215,7 @@ void extract2D(
     c1->SaveAs(Form("%s/general/sameCorr.png", outputPlots));
 
     //  Note: this is not normalised for the bin (0,0),
-    TH2* mixedTwoD = reinterpret_cast<TH2*>(hMixed->getPerTriggerYield(step, 0.2, 2.99, false));
+    TH2* mixedTwoD = (TH2*)hMixed->getPerTriggerYield(step, 0.2, 2.99, false);
     auto c2 = new TCanvas;
     mixedTwoD->Draw("SURF1");
     mixedTwoD->SetStats(0);
@@ -210,11 +223,12 @@ void extract2D(
     mixedTwoD->GetXaxis()->SetTitleOffset(1.5);
     c2->SaveAs(Form("%s/general/mixedCorr.png", outputPlots));
 
-    auto ratio = reinterpret_cast<TH2*>(sameTwoD->Clone("ratio"));
+    auto ratio = (TH2*)sameTwoD->Clone("ratio");
     ratio->Divide(mixedTwoD);
 
     auto c3 = new TCanvas;
-    ratio->GetYaxis()->SetRangeUser(-1.59, 1.59);
+    //ratio->GetYaxis()->SetRangeUser(-1.59, 1.59); // I am trying to expand the display range on the plots
+    ratio->GetYaxis()->SetRangeUser(-10.5, 10.5);
     ratio->GetXaxis()->SetTitleOffset(1.5);
     ratio->SetStats(0);
     ratio->SetTitle("");
@@ -234,7 +248,7 @@ void extract2D(
     hMixed->setCentralityRange(40, 100);
     hMixed->setZVtxRange(-10, 10);
 
-    TH2* sameTwoDHM = reinterpret_cast<TH2*>(h->getPerTriggerYield(step, 0.2, 2.99, true));
+    TH2* sameTwoDHM = (TH2*)h->getPerTriggerYield(step, 0.2, 2.99, true);
     auto c1HM = new TCanvas;
     sameTwoDHM->Draw("SURF1");
     sameTwoDHM->SetStats(0);
@@ -243,7 +257,7 @@ void extract2D(
     c1HM->SaveAs(Form("%s/general/sameCorr_HM.png", outputPlots));
 
     //  Note: this is not normalised for the bin (0,0)
-    TH2* mixedTwoDHM = reinterpret_cast<TH2*>(hMixed->getPerTriggerYield(step, 0.2, 2.99, false));
+    TH2* mixedTwoDHM = (TH2*)hMixed->getPerTriggerYield(step, 0.2, 2.99, false);
     auto c2HM = new TCanvas;
     mixedTwoDHM->Draw("SURF1");
     mixedTwoDHM->SetStats(0);
@@ -251,11 +265,12 @@ void extract2D(
     mixedTwoDHM->GetXaxis()->SetTitleOffset(1.5);
     c2HM->SaveAs(Form("%s/general/mixedCorr_HM.png", outputPlots));
 
-    auto ratioHM = reinterpret_cast<TH2*>(sameTwoDHM->Clone("ratioHM"));
+    auto ratioHM = (TH2*)sameTwoDHM->Clone("ratioHM");
     ratioHM->Divide(mixedTwoDHM);
 
     auto c3HM = new TCanvas;
-    ratioHM->GetYaxis()->SetRangeUser(-1.59, 1.59);
+    //ratioHM->GetYaxis()->SetRangeUser(-1.59, 1.59);  // I am trying to expand the display range on the plots
+    ratioHM->GetYaxis()->SetRangeUser(-256, 256);
     ratioHM->GetXaxis()->SetTitleOffset(1.5);
     ratioHM->SetStats(0);
     ratioHM->SetTitle("");
@@ -286,6 +301,8 @@ void extract2D(
     getSumOfRatios(h, hMixed, &hist1, step, centralityArr[mult], centralityArr[mult + 1], leadingPtReferenceFlowArr[0] + 0.01, leadingPtReferenceFlowArr[1] - 0.01, normalizePerTrigger);
 
     file = TFile::Open(outputFile, "UPDATE");
+
+    std::cout << hist1 << std::endl;
 
     if (hist1) {
       hist1->SetName(Form("dphi_ref_%d", mult));
@@ -328,6 +345,7 @@ void extract2D(
       if (assocPtArr[j] >= leadingPtArr[i + 1]) {
         continue;
       }
+
 
       gpTMin = assocPtArr[j] + 0.01;
       gpTMax = assocPtArr[j + 1] - 0.01;
